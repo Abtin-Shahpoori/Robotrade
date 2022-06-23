@@ -1,23 +1,19 @@
-def buysell(**rishe):
-    lastprice, check, a, b, c, pretet, coins, price, cnt, vaziyat, delay = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    tethers, maxx = 100, 100
+def buysell(**args):
+    candles = args.get("candle")
+    opening_prices , closing_prices, highest_prices = [], [], []
 
-    while True:
-        current_price = int(rishe.get("current_price"))
-        tethers = float(rishe.get("tether"))
-
-        candle = rishe.get("candle")
-        shoro = float(candle[len(candle) - 1][1])
-        payan = float(candle[len(candle) - 1][2])
-        a = payan - ((payan - shoro) / 60)
-        b = payan
-        
-        if tethers != 0: #kharid
-            if b <= a and b < current_price:
-                time.sleep(1)
-                return 1
-            else: 
-                return 0
+    for candle in candles:
+        opening_prices.append(float(candle[1]))
+        closing_prices.append(float(candle[2]))
+        highest_prices.append(float(candle[3]))
     
-        else: #forosh
-            return {"entery_price": current_price + (current_price/1000), "stop_lost": current_price - 3*(current_price/100), "take_profit": current_price}
+    n = len(opening_prices)
+    if n < 2:
+        return 0
+    if closing_prices[n -1] == opening_prices[n-1]:
+        return 0
+
+    if (opening_prices[n - 2] < opening_prices[n - 3]) and (closing_prices[n - 1] > opening_prices[n - 2]):
+        return {"entry_price": closing_prices[n - 1], "stop_loss": closing_prices[n - 2], "take_profit": max(closing_prices[n-1] + 0.002 * closing_prices[n-1], opening_prices[n-1])}
+    else:
+        return 0

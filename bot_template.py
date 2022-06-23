@@ -36,17 +36,22 @@ class Bot():
             sleep(5) 
             candles = rq.get(f"https://api.kucoin.com/api/v1/market/candles?type=1min&symbol=TRX-USDT&startAt={start_time}&endAt={start_time+86400}").text
 
-        candles = json.loads(candles)
-        candles = candles["data"]
+        try:
+            candles = candles["data"]
+        except:
+            sleep(100)
+            candles = rq.get(f"https://api.kucoin.com/api/v1/market/candles?type=1min&symbol=TRX-USDT&startAt={start_time}&endAt={start_time+86400}").text
+            candles = json.loads(candles)
+            candles = candles["data"]
+
         for candle in candles:
             for i, data in enumerate(candle):
                 candle[i] = float(candle[i])
                 
         # candles = candles["data"]
-        current_price =self. __fetch_current_price()
         tether_ammount = args.get("tether_ammount") or 100
         try:
-            self.algo(candle=candles, current_price=current_price, tether=tether_ammount)
+            self.algo(candle=candles) 
         except:
             raise RuntimeError("algo not defind")
 
@@ -60,44 +65,49 @@ class Bot():
                 sleep(5) 
                 continue
 
-            candles = json.loads(candles)
+            try:
+                candles = json.loads(candles)
+            except:
+                print("HELLO")
+            
             try:
                 candles = candles["data"]
             except:
-                sleep(5)
                 continue
-            for cnd in candles:
-                for i, data in enumerate(candle):
-                    cnd[i] = float(cnd[i])
 
-            order = self.algo(candle=candles, current_price=current_price, tether=tether_ammount)
+            order = self.algo(candle=candles)
             if order == 0:
-                print(100)
+                start_time += 60
                 continue
+
 
             for cndl in candles:
                 candle["highest"] = float(cndl[3])
                 candle["lowest"] = float(cndl[4])
-                print(candle)
-                print(order)
                 start_time += 60
-                print(datetime.fromtimestamp(start_time).strftime("%h:%m:%s"))
                 if candle["highest"] < float(order["take_profit"]) and float(candle["lowest"]) > float(order["stop_loss"]):
                     rand = random.randint(1, 2)
                     if rand == 1:
-                        profit += -1 * (current_price * tether_ammount) + (take_profit * tether_ammount)
+                        profit = order["take_profit"] * (-1 * (tether_ammount / order["entry_price"]) + (tether_ammount / order["take_profit"]))
                     if rand == 2:
-                        profit += -1 * (current_price * tether_ammount) + (stop_loss * tether_ammount)
+                        profit = order["stop_loss"] * (-1 * (order["entry_price"] * tether_ammount) + (order["stop_loss"] * tether_ammount))
+
+                    tether_ammount += profit
                     break
 
                 if candle["highest"] < order["take_profit"]:
-                    profit += -1 * (current_price * tether_ammount) + (take_profit * tether_ammount)
+                    profit = order["take_profit"] * (-1 * (tether_ammount / order["entry_price"]) + (tether_ammount / order["take_profit"]))
+                    tether_ammount += profit
                     break
                 if candle["lowest"] > order["stop_loss"]:
-                    profit += -1 * (current_price * tether_ammount) + (stop_loss * tether_ammount)
+                    profit = order["stop_loss"] * (-1 * (tether_ammount / order["entry_price"]) + (tether_ammount / order["stop_loss"]))
+                    tether_ammount += profit
+                    # print(profit)
                     break
 
-        return profit
+        if (tether_ammount - 100) == 0:
+            return "FUCK"
+        return tether_ammount
 
     def balance_sheet():
         pass
